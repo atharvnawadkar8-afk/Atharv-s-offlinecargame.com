@@ -1,0 +1,386 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ATHARVA'CAR GAME</title>
+
+<style>
+* {
+    box-sizing: border-box;
+}
+
+body {
+    margin: 0;
+    background: #f7f7f7;
+    font-family: Arial, sans-serif;
+    text-align: center;
+    color: #333;
+    user-select: none;
+    -webkit-user-select: none;
+}
+
+h1 {
+    margin: 20px 0 5px;
+    font-size: 28px;
+}
+
+#scoreboard {
+    font-size: 18px;
+    font-weight: bold;
+    margin: 15px;
+}
+
+#game {
+    position: relative;
+    width: 95%;
+    max-width: 800px;
+    height: 300px;
+    margin: auto;
+    overflow: hidden;
+    background: #fff;
+    border: 2px solid #444;
+    border-radius: 8px;
+    touch-action: manipulation;
+}
+
+#dino {
+    position: absolute;
+    left: 55px;
+    bottom: 40px;
+    width: 38px;
+    height: 45px;
+    font-size: 36px;
+    line-height: 45px;
+    z-index: 2;
+}
+
+#ground {
+    position: absolute;
+    bottom: 38px;
+    width: 100%;
+    height: 2px;
+    background: #555;
+}
+
+.obstacle {
+    position: absolute;
+    bottom: 40px;
+    width: 28px;
+    height: 42px;
+    font-size: 34px;
+    line-height: 42px;
+}
+
+#message {
+    position: absolute;
+    width: 100%;
+    top: 75px;
+    font-size: 23px;
+    font-weight: bold;
+    color: #444;
+    pointer-events: none;
+}
+
+#controls {
+    margin: 18px;
+}
+
+button {
+    padding: 13px 24px;
+    margin: 5px;
+    font-size: 17px;
+    font-weight: bold;
+    border: none;
+    border-radius: 8px;
+    background: #333;
+    color: white;
+    cursor: pointer;
+}
+
+button:active {
+    background: #666;
+    transform: scale(0.97);
+}
+
+#jumpButton {
+    background: #16803c;
+}
+
+small {
+    display: block;
+    margin: 15px;
+    color: #666;
+}
+</style>
+</head>
+
+<body>
+
+<h1>ATHARV'S 🚗 GAME</h1>
+
+<div id="scoreboard">
+    Score: <span id="score">0</span>
+    &nbsp; | &nbsp;
+    Best: <span id="best">0</span>
+</div>
+
+<div id="game">
+    <div id="message">Tap JUMP to start!</div>
+    <div id="dino">🚗</div>
+    <div id="ground"></div>
+</div>
+
+<div id="controls">
+    <button id="jumpButton">⬆ JUMP</button>
+    <button id="restartButton">↻ RESTART</button>
+</div>
+
+<small>
+    Press SPACE or ↑ to jump. Avoid the 🧱!
+    <br>Offline game — no internet required.
+</small>
+
+<script>
+const game = document.getElementById("game");
+const dino = document.getElementById("dino");
+const message = document.getElementById("message");
+const scoreDisplay = document.getElementById("score");
+const bestDisplay = document.getElementById("best");
+
+let jumping = false;
+let running = false;
+let gameOver = false;
+
+let dinoY = 0;
+let velocityY = 0;
+let obstacles = [];
+let score = 0;
+let speed = 5;
+let spawnTimer = 0;
+let lastTime = 0;
+let animationId = null;
+
+let best = 0;
+
+try {
+    best = Number(localStorage.getItem("dinoBest")) || 0;
+} catch (e) {}
+
+bestDisplay.textContent = best;
+
+const groundHeight = 40;
+const gravity = 0.65;
+const jumpPower = 13;
+
+function jump() {
+    if (gameOver) {
+        resetGame();
+        startGame();
+        return;
+    }
+
+    if (!running) {
+        startGame();
+    }
+
+    if (!jumping) {
+        velocityY = jumpPower;
+        jumping = true;
+    }
+}
+
+function startGame() {
+    if (running || gameOver) return;
+
+    running = true;
+    message.style.display = "none";
+    lastTime = performance.now();
+
+    animationId = requestAnimationFrame(update);
+}
+
+function createObstacle() {
+    const obstacle = document.createElement("div");
+    obstacle.className = "obstacle";
+    obstacle.textContent = "🧱";
+
+    game.appendChild(obstacle);
+
+    obstacles.push({
+        element: obstacle,
+        x: game.clientWidth + 10,
+        width: 28,
+        height: 42
+    });
+}
+
+
+function createObstacle() {
+    const obstacle = document.createElement("div");
+    obstacle.className = "obstacle";
+    obstacle.textContent = "🧱";
+
+    game.appendChild(obstacle);
+
+    obstacles.push({
+        element: obstacle,
+        x: game.clientWidth + 10,
+        width: 28,
+        height: 42
+    });
+}
+function update(time) {
+    if (!running || gameOver) return;
+
+    const delta = Math.min((time - lastTime) / 16.67, 2);
+    lastTime = time;
+
+    // Jump physics
+    if (jumping) {
+        dinoY += velocityY * delta;
+        velocityY -= gravity * delta;
+
+        if (dinoY <= 0) {
+            dinoY = 0;
+            velocityY = 0;
+            jumping = false;
+        }
+
+        dino.style.bottom = (groundHeight + dinoY) + "px";
+    }
+
+    // Increase score and difficulty
+    score += delta * 0.15;
+    speed = Math.min(5 + score / 100, 10);
+
+    scoreDisplay.textContent = Math.floor(score);
+
+    // Spawn obstacles
+    spawnTimer -= delta;
+
+    if (spawnTimer <= 0) {
+        createObstacle();
+        spawnTimer = 65 + Math.random() * 45;
+    }
+
+    // Move obstacles
+    const dinoLeft = 55;
+    const dinoWidth = 38;
+    const dinoHeight = 45;
+
+    for (let i = obstacles.length - 1; i >= 0; i--) {
+        const obstacle = obstacles[i];
+
+        obstacle.x -= speed * delta;
+        obstacle.element.style.left = obstacle.x + "px";
+
+        // Collision detection
+        const dinoRight = dinoLeft + dinoWidth - 8;
+        const dinoTop = game.clientHeight -
+                        groundHeight - dinoY - dinoHeight + 8;
+
+        const obstacleLeft = obstacle.x + 5;
+        const obstacleRight = obstacle.x + obstacle.width - 4;
+        const obstacleTop = game.clientHeight -
+                            groundHeight - obstacle.height;
+
+        const collision =
+            dinoRight > obstacleLeft &&
+            dinoLeft + 8 < obstacleRight &&
+            dinoTop < obstacleTop + obstacle.height &&
+            dinoTop + dinoHeight > obstacleTop + 8;
+
+        if (collision) {
+            endGame();
+            return;
+        }
+
+        // Remove obstacles outside the screen
+        if (obstacle.x < -40) {
+            obstacle.element.remove();
+            obstacles.splice(i, 1);
+        }
+    }
+
+    animationId = requestAnimationFrame(update);
+}
+
+function endGame() {
+    running = false;
+    gameOver = true;
+
+    const finalScore = Math.floor(score);
+
+    if (finalScore > best) {
+        best = finalScore;
+        bestDisplay.textContent = best;
+
+        try {
+            localStorage.setItem("dinoBest", best);
+        } catch (e) {}
+    }
+
+    message.innerHTML =
+        "GAME OVER<br><span style='font-size:16px'>Score: " +
+        finalScore + "<br>Tap JUMP or RESTART</span>";
+
+    message.style.display = "block";
+}
+
+function resetGame() {
+    if (animationId !== null) {
+        cancelAnimationFrame(animationId);
+    }
+
+    obstacles.forEach(obstacle => obstacle.element.remove());
+    obstacles = [];
+
+    running = false;
+    gameOver = false;
+    jumping = false;
+
+    dinoY = 0;
+    velocityY = 0;
+    score = 0;
+    speed = 5;
+    spawnTimer = 0;
+
+    scoreDisplay.textContent = "0";
+    dino.style.bottom = groundHeight + "px";
+
+    message.innerHTML = "Tap JUMP to start!";
+    message.style.display = "block";
+}
+
+document.getElementById("jumpButton")
+    .addEventListener("pointerdown", function(e) {
+        e.preventDefault();
+        jump();
+    });
+
+document.getElementById("restartButton")
+    .addEventListener("click", function() {
+        resetGame();
+        startGame();
+    });
+
+game.addEventListener("pointerdown", function(e) {
+    if (e.target === game || e.target === dino) {
+        jump();
+    }
+});
+
+document.addEventListener("keydown", function(e) {
+    if (e.code === "Space" || e.code === "ArrowUp") {
+        e.preventDefault();
+
+        if (!e.repeat) {
+            jump();
+        }
+    }
+});
+</script>
+
+</body>
+</html>
